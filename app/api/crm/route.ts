@@ -1,3 +1,5 @@
+import { partnerCatalogue } from '../../../lib/partner-catalogue';
+import { normalizeWebsite } from '../../../lib/website';
 import { env } from 'cloudflare:workers';
 import { getChatGPTUser } from '../../chatgpt-auth';
 export const dynamic='force-dynamic';
@@ -6,6 +8,8 @@ async function context(){
  const u=await getChatGPTUser();if(!u)throw new Error('Sign in required');const db=env.DB;if(!db)throw new Error("Database is unavailable");
  await db.prepare('INSERT OR IGNORE INTO crm_config (key,value) VALUES (?,?)').bind('owner',u.userId).run();
  const owner:any=await db.prepare('SELECT value FROM crm_config WHERE key=?').bind('owner').first();
+ const seeded=await db.prepare('SELECT value FROM crm_config WHERE key=?').bind('partner-catalogue-v1').first();
+ if(!seeded){await db.batch([...partnerCatalogue.map(p=>db.prepare('INSERT OR IGNORE INTO crm_records(id,kind,data,version) VALUES(?,?,?,1)').bind(p.id,p.kind,JSON.stringify(p))),db.prepare('INSERT OR IGNORE INTO crm_config(key,value) VALUES(?,?)').bind('partner-catalogue-v1','installed')]);}
  const rs:any=await db.prepare('SELECT * FROM crm_records').all();const records=rs.results.map((r:any)=>({...JSON.parse(r.data),id:r.id,kind:r.kind,version:r.version}));
  const admin=owner.value===u.userId;
  const member=records.find((r:any)=>r.kind==='team'&&r.email?.toLowerCase()===u.email.toLowerCase()&&r.status==='Active');
@@ -14,6 +18,7 @@ async function context(){
 export async function GET(){try{const c=await context();return reply({records:c.records,user:{email:c.u.email,name:c.u.displayName,admin:c.admin,memberId:c.member?.id}})}catch(e:any){return reply({error:e.message},403)}}
 export async function POST(req:Request){try{
  const c=await context();const b:any=await req.json();const {action}=b;let r=b.record;const old=c.records.find((x:any)=>x.id===r?.id);const kinds=['team','company','contact','lead','activity','product','proposal','template'];
+ if(r?.kind==='company'&&action!=='delete')r.website=normalizeWebsite(r.website);
  if(!r||!kinds.includes(r.kind))return reply({error:'Invalid record'},400);
  if(['team','template','product'].includes(r.kind)&&!c.admin)return reply({error:'Owner permission required'},403);
  if(old&&old.kind!==r.kind)return reply({error:'Invalid record type'},400);
@@ -34,7 +39,7 @@ export async function POST(req:Request){try{
  r={...old,status:({submit:'Pending approval',approve:'Approved',return:'Changes requested',sent:'Sent'} as any)[action],reviewNote:b.note||'',history:[...(old.history||[]),{action,by:c.u.email,at:new Date().toISOString(),note:b.note||''}]};
  }else{
  if(old?.status==='Pending approval'||old?.status==='Sent')return reply({error:'Pending and sent proposals cannot be edited'},400);
- if(!r.items?.length||r.items.some((i:any)=>!i.description||Number(i.qty)<=0||Number(i.price)<0))return reply({error:'Add valid proposal line items'},400);
+ if(!r.items?.length||r.items.some((i:any)=>!i.description||!Number.isFinite(Number(i.qty))||Number(i.qty)<=0||i.price===''||i.price==null||!Number.isFinite(Number(i.price))||Number(i.price)<0))return reply({error:'Add valid proposal line items'},400);
  r.status='Draft';r.history=old?.history||[];
  }
  const subtotal=r.items.reduce((a:number,i:any)=>a+Number(i.qty)*Number(i.price),0);if(Number(r.discount||0)<0||Number(r.discount||0)>subtotal||Number(r.tax||0)<0)return reply({error:'Invalid discount or tax'},400);
