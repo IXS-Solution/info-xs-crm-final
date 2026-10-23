@@ -38,7 +38,7 @@ export async function POST(req:Request){try{
  r.status='Draft';r.history=old?.history||[];
  }
  const subtotal=r.items.reduce((a:number,i:any)=>a+Number(i.qty)*Number(i.price),0);if(Number(r.discount||0)<0||Number(r.discount||0)>subtotal||Number(r.tax||0)<0)return reply({error:'Invalid discount or tax'},400);
- r.total=(subtotal-Number(r.discount||0))*(1+Number(r.tax||0)/100);
+ r.total=Math.round((subtotal-Number(r.discount||0))*(1+Number(r.tax||0)/100)*100)/100;
  }
  if(r.kind==='activity'&&old)return reply({error:'Activity entries are append-only'},400);
  const now=new Date().toISOString();r={...r,id:old?.id||crypto.randomUUID(),createdAt:old?.createdAt||now,updatedAt:now,updatedBy:c.u.email};
