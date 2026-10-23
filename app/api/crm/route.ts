@@ -1,3 +1,4 @@
+import { normalizeStaffEmail, isStaffEmail } from '../../../lib/account-policy';
 import { partnerCatalogue } from '../../../lib/partner-catalogue';
 import { normalizeWebsite } from '../../../lib/website';
 import { env } from 'cloudflare:workers';
@@ -12,6 +13,7 @@ async function context(){
  if(!seeded){await db.batch([...partnerCatalogue.map(p=>db.prepare('INSERT OR IGNORE INTO crm_records(id,kind,data,version) VALUES(?,?,?,1)').bind(p.id,p.kind,JSON.stringify(p))),db.prepare('INSERT OR IGNORE INTO crm_config(key,value) VALUES(?,?)').bind('partner-catalogue-v1','installed')]);}
  const rs:any=await db.prepare('SELECT * FROM crm_records').all();const records=rs.results.map((r:any)=>({...JSON.parse(r.data),id:r.id,kind:r.kind,version:r.version}));
  const admin=owner.value===u.userId;
+ if(!admin&&!isStaffEmail(u.email))throw new Error('Access is restricted to approved @info-xs.com staff accounts.');
  const member=records.find((r:any)=>r.kind==='team'&&r.email?.toLowerCase()===u.email.toLowerCase()&&r.status==='Active');
  if(!admin&&!member)throw new Error('Your account is not an active team member');return {u,db,records,admin,member};
 }
@@ -21,6 +23,7 @@ export async function POST(req:Request){try{
  if(r?.kind==='company'&&action!=='delete')r.website=normalizeWebsite(r.website);
  if(!r||!kinds.includes(r.kind))return reply({error:'Invalid record'},400);
  if(['team','template','product'].includes(r.kind)&&!c.admin)return reply({error:'Owner permission required'},403);
+ if(r.kind==='team'&&action!=='delete'){r.email=normalizeStaffEmail(r.email);if(c.records.some((x:any)=>x.kind==='team'&&x.id!==r.id&&String(x.email).trim().toLowerCase()===r.email))return reply({error:'A team member with this username already exists.'},400);}
  if(old&&old.kind!==r.kind)return reply({error:'Invalid record type'},400);
  if(!c.admin&&['lead','proposal'].includes(r.kind)&&(old?.owner||r.owner)!==c.member?.id)return reply({error:'This record belongs to another salesperson'},403);
  if(r.kind==='activity'&&!c.admin&&c.records.find((x:any)=>x.id===r.lead)?.owner!==c.member?.id)return reply({error:'Lead access denied'},403);
