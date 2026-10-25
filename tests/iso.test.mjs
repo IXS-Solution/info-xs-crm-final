@@ -4,6 +4,8 @@ import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 const compile=s=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText).toString('base64');
 const {calculateISO,newISO,newISOLine}=await import(compile(readFileSync(new URL('../lib/iso.ts',import.meta.url),'utf8')));
+const {visibleRecords,checkSalesWrite}=await import(compile(readFileSync(new URL('../lib/crm-access.ts',import.meta.url),'utf8')));
+const {validateReport}=await import(compile(readFileSync(new URL('../lib/crm-reports.ts',import.meta.url),'utf8')));
 const fixture=()=>({...newISO('sales-1'),name:'Network project',company:'customer-1',items:[{...newISOLine(),description:'Server',source:'Imported',qty:2,unitCost:100,importPercent:20,freight:100,unitSell:2000,taxPercent:18,withholdingPercent:5,targetMargin:20}],exchangeRate:10});
 test('import costing includes FX, uplift, freight, tax and withholding',()=>{const {items,totals}=calculateISO(fixture());assert.equal(items[0].landedUnitCost,1200);assert.equal(totals.cost,2500);assert.equal(totals.sales,4000);assert.equal(totals.tax,720);assert.equal(totals.withholding,200);assert.equal(totals.finalGP,1300);assert.equal(items[0].suggestedUnitSell,1562.5)});
 test('local and service costs do not use FX or import uplift',()=>{for(const source of ['Local','Service']){const r=fixture();r.items[0].source=source;assert.equal(calculateISO(r).totals.cost,300)}});
@@ -13,10 +15,10 @@ test('rejects invalid inputs and impossible target margins',()=>{for(const [key,
 // Exercise the actual route with a bounded in-memory D1 adapter and authenticated users.
 const rows=new Map();let currentUser={userId:'owner-user',email:'owner@example.com',displayName:'Owner'};
 const put=(r)=>rows.set(r.id,{id:r.id,kind:r.kind,data:JSON.stringify(r),version:1});
-put({id:'sales-1',kind:'team',name:'Sales One',email:'one@info-xs.com',status:'Active'});put({id:'sales-2',kind:'team',name:'Sales Two',email:'two@info-xs.com',status:'Active'});put({id:'customer-1',kind:'company',name:'Customer'});
+put({id:'sales-1',kind:'team',name:'Sales One',email:'one@info-xs.com',status:'Active'});put({id:'sales-2',kind:'team',name:'Sales Two',email:'two@info-xs.com',status:'Active'});put({id:'customer-1',kind:'company',name:'Customer',owner:'sales-1'});
 const db={prepare(sql){return {async all(){return {results:[...rows.values()]}},bind(...args){return {async first(){return {value:'owner-user'}},async all(){return {results:[...rows.values()]}},async run(){if(sql.startsWith('INSERT INTO crm_records')){const [id,kind,data]=args;if(rows.has(id))throw Error('UNIQUE constraint');rows.set(id,{id,kind,data,version:1});return {meta:{changes:1}}}if(sql.startsWith('UPDATE crm_records')){const [data,id,version]=args;const old=rows.get(id);if(!old||old.version!==version)return {meta:{changes:0}};rows.set(id,{...old,data,version:version+1});return {meta:{changes:1}}}return {meta:{changes:0}}}}}}}};
-globalThis.__isoTest={env:{DB:db},getChatGPTUser:async()=>currentUser,calculateISO};
-let source=readFileSync(new URL('../app/api/crm/route.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');source='const {env,getChatGPTUser,calculateISO}=globalThis.__isoTest; const partnerCatalogue=[]; const normalizeWebsite=x=>x; const normalizeStaffEmail=x=>x; const isStaffEmail=x=>x.endsWith("@info-xs.com");\n'+source;
+globalThis.__isoTest={env:{DB:db},getChatGPTUser:async()=>currentUser,calculateISO,visibleRecords,checkSalesWrite,validateReport};
+let source=readFileSync(new URL('../app/api/crm/route.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');source='const {env,getChatGPTUser,calculateISO,visibleRecords,checkSalesWrite,validateReport}=globalThis.__isoTest; const partnerCatalogue=[]; const normalizeWebsite=x=>x; const normalizeStaffEmail=x=>x; const isStaffEmail=x=>x.endsWith("@info-xs.com");\n'+source;
 const api=await import(compile(source));
 const post=async(record,action='save')=>{const response=await api.POST(new Request('https://test/api/crm',{method:'POST',body:JSON.stringify({record,action})}));return {status:response.status,body:await response.json()}};
 let saved;
@@ -25,3 +27,39 @@ test('API protects ownership and filters other staff ISOs',async()=>{currentUser
 test('API preserves ISO ID and rejects concurrent stale updates',async()=>{const res=await post({...saved,isoNumber:'FORGED'});assert.equal(res.status,200);assert.equal(res.body.isoNumber,saved.isoNumber);assert.equal((await post(saved)).status,409);saved={...JSON.parse(rows.get(saved.id).data),version:2}});
 test('API records order and forbids edits and deletion',async()=>{assert.equal((await post(saved,'record')).status,200);saved={...JSON.parse(rows.get(saved.id).data),version:3};assert.equal(saved.status,'Recorded');assert.equal((await post(saved)).status,400);currentUser={userId:'owner-user',email:'owner@example.com'};assert.equal((await post(saved,'delete')).status,400)});
 test('independent orders receive distinct IDs',async()=>{const a=await post(fixture()),b=await post(fixture());assert.equal(a.status,200);assert.equal(b.status,200);assert.notEqual(a.body.id,b.body.id);assert.notEqual(a.body.isoNumber,b.body.isoNumber)});
+test('API isolates all staff working records and strips HR data',async()=>{
+ put({id:'private-company',kind:'company',name:'Private customer',owner:'sales-2'});
+ put({id:'private-contact',kind:'contact',name:'Private contact',company:'private-company'});
+ put({id:'private-lead',kind:'lead',name:'Private lead',owner:'sales-2',company:'private-company'});
+ put({id:'private-activity',kind:'activity',title:'Private activity',lead:'private-lead'});
+ put({id:'private-proposal',kind:'proposal',title:'Private proposal',owner:'sales-2',company:'private-company'});
+ put({id:'own-contact',kind:'contact',name:'Own contact',company:'customer-1'});
+ put({id:'own-lead',kind:'lead',name:'Own lead',owner:'sales-1',company:'customer-1'});
+ put({id:'own-activity',kind:'activity',title:'Own activity',lead:'own-lead'});
+ put({id:'admin-report',kind:'report',name:'Private admin report'});
+ const person=JSON.parse(rows.get('sales-1').data);put({...person,notes:'HR private',emergency:'Secret emergency contact'});
+ currentUser={userId:'one',email:'one@info-xs.com'};
+ const data=await (await api.GET()).json();
+ for(const id of ['private-company','private-contact','private-lead','private-activity','private-proposal','admin-report','sales-2'])assert.equal(data.records.some(r=>r.id===id),false,id);
+ for(const id of ['customer-1','own-contact','own-lead','own-activity','sales-1'])assert.equal(data.records.some(r=>r.id===id),true,id);
+ assert.equal(JSON.stringify(data).includes('Secret emergency contact'),false);assert.equal(JSON.stringify(data).includes('HR private'),false);
+});
+test('API rejects cross-user reassignment, customer moves and direct report writes',async()=>{
+ for(const kind of ['lead','proposal','iso','company'])assert.equal((await post({kind,name:'Forged',owner:'sales-2',company:'customer-1'})).status,403,kind);
+ for(const kind of ['lead','proposal','iso','contact'])assert.equal((await post({kind,name:'Forged',owner:'sales-1',company:'private-company'})).status,403,kind);
+ assert.equal((await post({kind:'activity',title:'Forged',lead:'private-lead'})).status,403);
+ assert.equal((await post({kind:'report',name:'Forbidden'})).status,403);
+ const privateContact={...JSON.parse(rows.get('private-contact').data),version:1,company:'customer-1'};assert.equal((await post(privateContact)).status,403);
+});
+test('API assigns current user on new customers, preserves admin visibility, denies inactive staff',async()=>{
+ const response=await post({kind:'company',name:'My customer'});assert.equal(response.status,200);assert.equal(JSON.parse(rows.get(response.body.id).data).owner,'sales-1');
+ currentUser={userId:'owner-user',email:'owner@example.com'};assert.equal((await (await api.GET()).json()).records.some(r=>r.id==='private-lead'),true);
+ currentUser={userId:'inactive',email:'inactive@info-xs.com'};assert.equal((await api.GET()).status,403);
+});
+test('admin report definitions persist in DB and remain invisible to staff',async()=>{
+ currentUser={userId:'owner-user',email:'owner@example.com'};
+ const spec={kind:'report',name:'My ISO report',source:'iso',columns:['isoNumber','gp'],filters:[],metrics:[{field:'gp',op:'sum'}],groupBy:'',sortBy:'gp',direction:'desc',year:'2026',from:'',to:''};
+ const res=await post(spec);assert.equal(res.status,200);const stored=JSON.parse(rows.get(res.body.id).data);assert.equal(stored.source,'iso');assert.equal(stored.columns[1],'gp');
+ assert.equal((await post({...spec,columns:['nonexistent']})).status,400);
+ currentUser={userId:'one',email:'one@info-xs.com'};const data=await (await api.GET()).json();assert.equal(data.records.some(r=>r.id===res.body.id),false);
+});

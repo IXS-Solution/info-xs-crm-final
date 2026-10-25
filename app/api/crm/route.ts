@@ -1,3 +1,5 @@
+import {visibleRecords,checkSalesWrite} from '../../../lib/crm-access';
+import {validateReport} from '../../../lib/crm-reports';
 import {calculateISO} from '../../../lib/iso';
 import { normalizeStaffEmail, isStaffEmail } from '../../../lib/account-policy';
 import { partnerCatalogue } from '../../../lib/partner-catalogue';
@@ -18,18 +20,16 @@ async function context(){
  const member=records.find((r:any)=>r.kind==='team'&&r.email?.toLowerCase()===u.email.toLowerCase()&&r.status==='Active');
  if(!admin&&!member)throw new Error('Your account is not an active team member');return {u,db,records,admin,member};
 }
-export async function GET(){try{const c=await context();return reply({records:c.records.filter((r:any)=>r.kind!=='iso'||c.admin||r.owner===c.member?.id),user:{email:c.u.email,name:c.u.displayName,admin:c.admin,memberId:c.member?.id}})}catch(e:any){return reply({error:e.message},403)}}
+export async function GET(){try{const c=await context();return reply({records:visibleRecords(c.records,c.admin,c.member),user:{email:c.u.email,name:c.u.displayName,admin:c.admin,memberId:c.member?.id}})}catch(e:any){return reply({error:e.message},403)}}
 export async function POST(req:Request){try{
- const c=await context();const b:any=await req.json();const {action}=b;let r=b.record;const old=c.records.find((x:any)=>x.id===r?.id);const kinds=['team','company','contact','lead','activity','product','proposal','template','vendor','iso'];
+ const c=await context();const b:any=await req.json();const {action}=b;let r=b.record;const old=c.records.find((x:any)=>x.id===r?.id);const kinds=['team','company','contact','lead','activity','product','proposal','template','vendor','iso','report'];
  if(['company','vendor'].includes(r?.kind)&&action!=='delete')r.website=normalizeWebsite(r.website);
  if(!r||!kinds.includes(r.kind))return reply({error:'Invalid record'},400);
- if(['team','template','product','vendor'].includes(r.kind)&&!c.admin)return reply({error:'Owner permission required'},403);
+ if(['team','template','product','vendor','report'].includes(r.kind)&&!c.admin)return reply({error:'Owner permission required'},403);
  if(r.kind==='team'&&action!=='delete'){r.email=normalizeStaffEmail(r.email);if(c.records.some((x:any)=>x.kind==='team'&&x.id!==r.id&&String(x.email).trim().toLowerCase()===r.email))return reply({error:'A team member with this username already exists.'},400);}
  if(old&&old.kind!==r.kind)return reply({error:'Invalid record type'},400);
- if(!c.admin&&['lead','proposal'].includes(r.kind)&&(old?.owner||r.owner)!==c.member?.id)return reply({error:'This record belongs to another salesperson'},403);
- if(r.kind==='activity'&&!c.admin&&c.records.find((x:any)=>x.id===r.lead)?.owner!==c.member?.id)return reply({error:'Lead access denied'},403);
- if(r.kind==='iso'&&!c.admin&&(old?.owner||r.owner)!==c.member?.id)return reply({error:'ISO access denied'},403);
- if(r.kind==='iso'&&!c.admin&&r.owner!==c.member?.id)return reply({error:'Cannot reassign this ISO'},403);
+ if(r.id&&!old)return reply({error:'Record no longer exists. Refresh and try again.'},409);
+ try{checkSalesWrite(r,old,c.records,c.admin,c.member)}catch(e:any){return reply({error:e.message},403)}
  if(action==='delete'){
  if(!c.admin)return reply({error:'Owner permission required'},403);
  if(c.records.some((x:any)=>x.id!==r.id&&(x.vendor===r.id||x.company===r.id||x.owner===r.id||x.lead===r.id||x.items?.some((i:any)=>i.product===r.id))))return reply({error:'This record is in use. Update the linked records first.'},400);
@@ -37,6 +37,9 @@ export async function POST(req:Request){try{
  await c.db.prepare('DELETE FROM crm_records WHERE id=? AND version=?').bind(r.id,r.version).run();return reply({ok:true});}
  if(!String(r.name||r.title||r.summary||'').trim())return reply({error:'A name or title is required'},400);
  if(r.kind==='contact'&&!c.records.some((x:any)=>x.kind==='company'&&x.id===r.company))return reply({error:'Select a company'},400);
+ if(r.kind==='report'){if(action!=='save')return reply({error:'Invalid report action'},400);validateReport(r);}
+ if(['company','lead','proposal','iso'].includes(r.kind)&&!c.records.some((x:any)=>x.kind==='team'&&x.id===r.owner&&x.status==='Active'))return reply({error:'Select an active sales owner'},400);
+ if(['lead','proposal'].includes(r.kind)&&!c.records.some((x:any)=>x.kind==='company'&&x.id===r.company))return reply({error:'Select a customer company'},400);
  if(r.kind==='vendor'&&action!=='delete'&&!['Active','Inactive'].includes(r.status))return reply({error:'Select a valid vendor status'},400);
  if(r.kind==='product'&&action!=='delete'){
  if(r.vendor&&!c.records.some((x:any)=>x.kind==='vendor'&&x.id===r.vendor))return reply({error:'Select a registered vendor'},400);
@@ -73,5 +76,5 @@ export async function POST(req:Request){try{
  if(r.kind==='activity'&&old)return reply({error:'Activity entries are append-only'},400);
  const now=new Date().toISOString();r={...r,id:old?.id||(r.kind==='iso'?r.id:crypto.randomUUID()),createdAt:old?.createdAt||now,updatedAt:now,updatedBy:c.u.email};
  if(old){const result:any=await c.db.prepare('UPDATE crm_records SET data=?,version=version+1 WHERE id=? AND version=?').bind(JSON.stringify(r),r.id,b.record.version).run();if(!result.meta.changes)return reply({error:'Record changed. Refresh and try again.'},409)}else await c.db.prepare('INSERT INTO crm_records(id,kind,data,version) VALUES(?,?,?,1)').bind(r.id,r.kind,JSON.stringify(r)).run();
- return reply({ok:true,...(r.kind==='iso'?{id:r.id,isoNumber:r.isoNumber}:{})});
+ return reply({ok:true,id:r.id,version:old?old.version+1:1,...(r.kind==='iso'?{id:r.id,isoNumber:r.isoNumber}:{})});
  }catch(e:any){return reply({error:e.message},400)}}

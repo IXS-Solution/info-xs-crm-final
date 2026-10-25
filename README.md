@@ -161,3 +161,38 @@ save/record history. Automated calculation and API checks run with:
 ```sh
 node tests/iso.test.mjs
 ```
+
+
+### Personal working areas and admin reports
+
+Staff responses are scoped on the server to their own companies, leads, proposals,
+ISOs and lead activities. Contacts inherit access from the company. New staff
+companies are assigned to the authenticated member. Staff cannot move records or
+customer links into another working area, including by crafting API requests.
+Other team profiles, HR data and saved report definitions are excluded. Catalogue,
+vendor and proposal-template records remain shared references; only the owner can
+maintain them. Administrators retain the full workspace view.
+
+For existing customer records, the administrator must select a **Sales owner /
+working area** in the company editor. Unassigned historical companies remain
+admin-only. Keep the owner of related leads, proposals and ISOs aligned with the
+customer owner. An active @info-xs.com team profile and permission to enter the
+hosted Site are both required; this change does not automatically invite users
+or change the Site audience.
+
+**Reports** is available only to the administrator. Seven standard reports cover
+ISO profitability, recorded orders below 10% GP, open pipeline by salesperson,
+team performance/quotas, pending proposals, activity and overdue follow-ups.
+The builder supports eight data sources, ordered columns, multiple AND filters,
+date ranges, sorting, grouping, counts, sum/average/min/max measures, and CSV.
+Admin-only saved definitions use `report` records in the existing D1 table and
+refresh against current data when opened. Draft ISOs are included in the general
+ISO profitability report; use a status filter to select recorded orders only.
+Sales performance counts recorded ISOs in the selected year. Averages are per
+record, so average margin percentages are unweighted.
+
+Additional report checks:
+
+```sh
+node tests/reports.test.mjs
+```
