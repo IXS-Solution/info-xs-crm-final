@@ -19,21 +19,27 @@ async function context(){
 }
 export async function GET(){try{const c=await context();return reply({records:c.records,user:{email:c.u.email,name:c.u.displayName,admin:c.admin,memberId:c.member?.id}})}catch(e:any){return reply({error:e.message},403)}}
 export async function POST(req:Request){try{
- const c=await context();const b:any=await req.json();const {action}=b;let r=b.record;const old=c.records.find((x:any)=>x.id===r?.id);const kinds=['team','company','contact','lead','activity','product','proposal','template'];
- if(r?.kind==='company'&&action!=='delete')r.website=normalizeWebsite(r.website);
+ const c=await context();const b:any=await req.json();const {action}=b;let r=b.record;const old=c.records.find((x:any)=>x.id===r?.id);const kinds=['team','company','contact','lead','activity','product','proposal','template','vendor'];
+ if(['company','vendor'].includes(r?.kind)&&action!=='delete')r.website=normalizeWebsite(r.website);
  if(!r||!kinds.includes(r.kind))return reply({error:'Invalid record'},400);
- if(['team','template','product'].includes(r.kind)&&!c.admin)return reply({error:'Owner permission required'},403);
+ if(['team','template','product','vendor'].includes(r.kind)&&!c.admin)return reply({error:'Owner permission required'},403);
  if(r.kind==='team'&&action!=='delete'){r.email=normalizeStaffEmail(r.email);if(c.records.some((x:any)=>x.kind==='team'&&x.id!==r.id&&String(x.email).trim().toLowerCase()===r.email))return reply({error:'A team member with this username already exists.'},400);}
  if(old&&old.kind!==r.kind)return reply({error:'Invalid record type'},400);
  if(!c.admin&&['lead','proposal'].includes(r.kind)&&(old?.owner||r.owner)!==c.member?.id)return reply({error:'This record belongs to another salesperson'},403);
  if(r.kind==='activity'&&!c.admin&&c.records.find((x:any)=>x.id===r.lead)?.owner!==c.member?.id)return reply({error:'Lead access denied'},403);
  if(action==='delete'){
  if(!c.admin)return reply({error:'Owner permission required'},403);
- if(c.records.some((x:any)=>x.id!==r.id&&(x.company===r.id||x.owner===r.id||x.lead===r.id||x.items?.some((i:any)=>i.product===r.id))))return reply({error:'This record is in use. Update the linked records first.'},400);
+ if(c.records.some((x:any)=>x.id!==r.id&&(x.vendor===r.id||x.company===r.id||x.owner===r.id||x.lead===r.id||x.items?.some((i:any)=>i.product===r.id))))return reply({error:'This record is in use. Update the linked records first.'},400);
  if(r.kind==='activity'||r.kind==='proposal')return reply({error:'Activity and proposal records are retained for audit'},400);
  await c.db.prepare('DELETE FROM crm_records WHERE id=? AND version=?').bind(r.id,r.version).run();return reply({ok:true});}
  if(!String(r.name||r.title||r.summary||'').trim())return reply({error:'A name or title is required'},400);
  if(r.kind==='contact'&&!c.records.some((x:any)=>x.kind==='company'&&x.id===r.company))return reply({error:'Select a company'},400);
+ if(r.kind==='vendor'&&action!=='delete'&&!['Active','Inactive'].includes(r.status))return reply({error:'Select a valid vendor status'},400);
+ if(r.kind==='product'&&action!=='delete'){
+ if(r.vendor&&!c.records.some((x:any)=>x.kind==='vendor'&&x.id===r.vendor))return reply({error:'Select a registered vendor'},400);
+ if(!['Product','Service'].includes(r.type))return reply({error:'Select Product or Service'},400);
+ if(r.price!==null&&(r.price===''||!Number.isFinite(Number(r.price))||Number(r.price)<0))return reply({error:'Enter a valid non-negative price'},400);
+ }
  if(r.kind==='proposal'){
  const statuses:any={submit:['Draft','Changes requested'],approve:['Pending approval'],return:['Pending approval'],sent:['Approved']};
  if(action!=='save'){
