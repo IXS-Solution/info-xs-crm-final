@@ -17,7 +17,7 @@ Let sales staff record accurate customer and visit information while visiting cl
 
 ## Connectivity and reliability
 
-Offline support is a pending product choice. If required, retain unsent drafts and a durable upload queue on the device; show an offline indicator and sync status. Use stable operation IDs so retries cannot duplicate a visit. Preserve both capture time and server receipt time, and prompt for conflicts when another user changed the same record. Do not discard an unsynced draft on a failed upload, navigation or token expiry.
+Offline capture and later synchronization are confirmed requirements. Retain unsent drafts and a durable upload queue on the device; show an offline indicator and sync status. Use stable operation IDs so retries cannot duplicate a visit. Preserve both capture time and server receipt time, and prompt for conflicts when another user changed the same record. Do not discard an unsynced draft on a failed upload, navigation or token expiry.
 
 Before adding device storage, define draft retention, sign-out behavior and recovery for shared/lost devices. Avoid caching customer records globally in a service worker. Brochure/image uploads need retry and size controls, and should not silently consume mobile data in the background.
 
@@ -26,7 +26,7 @@ Before adding device storage, define draft retention, sign-out behavior and reco
 1. An installable mobile web app can reuse the CRM UI/backend and serve Android and iPhone from a single codebase. Camera access works over HTTPS. Background sync, notifications and installation behavior vary by browser and operating system and must be tested on actual devices.
 2. A cross-platform native app is appropriate if app-store distribution, stronger device integrations or more predictable background behavior are required. Keep the same backend and permission model rather than maintaining a separate customer database.
 
-Android and iOS are confirmed target platforms. Offline capture and later synchronization remain an open requirement. The choice between an installable web app and a cross-platform native app has not been finalized.
+Android and iOS are confirmed target platforms, including offline capture and later synchronization. A cross-platform native app is the recommended direction for reliable on-device drafts and upload queues on both platforms. The delivery technology has not been finalized.
 
 ## Backend prerequisites
 
@@ -39,7 +39,7 @@ Keep database migrations additive and validate compatibility with the newer repo
 - Capture and submit a visit and card scan on both real Android and iPhone devices.
 - Verify that a staff member cannot read or modify another salesperson's restricted records.
 - Confirm that the office sees submitted updates within an agreed refresh interval, and distinguish device capture time from server submission time.
-- If offline support is selected: airplane-mode capture, app restart, reconnection, expired login, failed photo upload, duplicate retry, and concurrent edits must preserve data and show a clear outcome.
+- Airplane-mode capture, app restart, reconnection, expired login, failed photo upload, duplicate retry, and concurrent edits must preserve data and show a clear outcome.
 - Test the complete approval/proposal/brochure journey, mobile accessibility, poor connectivity, battery/data use and realistic concurrent traffic.
 
 Live publication of the CRM additions remains separate from saving their source to GitHub. See `qc/REPORT.md` for completed local checks and publication limitations.
