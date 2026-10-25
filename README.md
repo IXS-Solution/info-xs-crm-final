@@ -131,3 +131,33 @@ The portable build runs Vinext directly without a host `timeout` command. The ma
 
 - [vinext Documentation](https://github.com/cloudflare/vinext)
 - [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+
+### ISO — Internal Sale Orders
+
+Open **ISO** in the CRM navigation to create a project costing. Select a customer,
+active sales owner and order date, then add imported goods, local purchases or
+services. Catalogue and vendor links are optional. Import costs use the entered
+PKR exchange rate and import uplift; local and service costs are in PKR.
+
+Each ISO is persisted as an `iso` record in the existing D1 `crm_records` table.
+A server-generated UUID is the database primary key. Its immutable display number
+is `ISO-<creation-year>-<UUID>`. No schema migration is required. The first draft
+save assigns the number; later saves preserve it. Version checks reject stale
+edits. Sales staff can read and update their own ISOs; the owner can access all.
+**Record sale order** locks the ISO, and ISO deletion is prohibited for audit.
+
+Calculations run on the server as well as in the editor; client totals are never
+trusted. The summary includes sales, tax, landed costs, withholding treated as a
+cost, sales promotion, financing, guarantees and final GP. Target margin suggests
+a selling price before withholding; clicking **Use price** applies it. Rates are
+entered per project rather than copied from historical spreadsheet defaults.
+A margin below 10% displays a warning, not an approval workflow.
+
+Monthly financing applies to positive cost less advance. Guarantee charges use
+tax-inclusive sales × guarantee percentage × cash cover × monthly charge × months.
+Stored records include their inputs, calculated totals, creator, timestamps and
+save/record history. Automated calculation and API checks run with:
+
+```sh
+node tests/iso.test.mjs
+```
