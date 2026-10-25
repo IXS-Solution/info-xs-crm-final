@@ -26,7 +26,7 @@ Before adding device storage, define draft retention, sign-out behavior and reco
 1. An installable mobile web app can reuse the CRM UI/backend and serve Android and iPhone from a single codebase. Camera access works over HTTPS. Background sync, notifications and installation behavior vary by browser and operating system and must be tested on actual devices.
 2. A cross-platform native app is appropriate if app-store distribution, stronger device integrations or more predictable background behavior are required. Keep the same backend and permission model rather than maintaining a separate customer database.
 
-Device targets and offline requirements have been asked but are not confirmed. No platform choice is treated as approved yet.
+Android and iOS are confirmed target platforms. Offline capture and later synchronization remain an open requirement. The choice between an installable web app and a cross-platform native app has not been finalized.
 
 ## Backend prerequisites
 
@@ -36,7 +36,7 @@ Keep database migrations additive and validate compatibility with the newer repo
 
 ## Acceptance checks for the mobile phase
 
-- Capture and submit a visit and card scan on a real Android/iPhone device, as applicable.
+- Capture and submit a visit and card scan on both real Android and iPhone devices.
 - Verify that a staff member cannot read or modify another salesperson's restricted records.
 - Confirm that the office sees submitted updates within an agreed refresh interval, and distinguish device capture time from server submission time.
 - If offline support is selected: airplane-mode capture, app restart, reconnection, expired login, failed photo upload, duplicate retry, and concurrent edits must preserve data and show a clear outcome.
