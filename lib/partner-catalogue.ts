@@ -1,6 +1,7 @@
+import {targetVendorBrands} from './target-vendors';
 // Curated product families, not distributor SKUs or a live stock/price feed.
 // Product names checked against manufacturer portfolios on 23 October 2026.
-export const partnerBrands=['HP','HPE','H3C','Lenovo','Cisco','Huawei','Microsoft','Trend Micro'];
+export const partnerBrands=Array.from(new Set(['HP','HPE','H3C','Lenovo','Cisco','Huawei','Microsoft','Trend Micro',...targetVendorBrands]));
 const sources:Record<string,string>={HP:'https://www.hp.com/us-en/business-solutions/business-computers.html',HPE:'https://www.hpe.com/nl/en/product-catalog.html',H3C:'https://www.h3c.com/en/Products_Technology/Enterprise_Products/',Lenovo:'https://www.lenovo.com/us/en/servers-storage/',Cisco:'https://www.cisco.com/site/us/en/products/index.html',Huawei:'https://e.huawei.com/en/products-and-solutions',Microsoft:'https://www.microsoft.com/en-us/microsoft-365/business/microsoft-365-plans-and-pricing','Trend Micro':'https://www.trendmicro.com/en_us/business/products.html'};
 const rows:string[][]=[
  ['HP','HP EliteBook','Laptops','Business laptop family. Specify model, processor, RAM, storage, display, operating system and warranty.'],

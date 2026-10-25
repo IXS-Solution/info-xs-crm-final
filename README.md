@@ -196,3 +196,32 @@ Additional report checks:
 ```sh
 node tests/reports.test.mjs
 ```
+
+### Target vendor catalogue from the partnership sheet
+
+The supplied `Partneship Certificate Sheet.xlsx` is represented in
+`lib/target-vendor-data.ts`, retaining original row numbers, labels, technology
+scope, distributor contacts and partnership progress. Huawei DCF's duplicate rows
+are merged; Vivanco and Corning are separate vendors. Managed Services (SLA) is an
+internal proposed service portfolio, not an external manufacturer. This produces
+26 vendor/service entries and 121 linked product families: 90 new entries and 31
+existing catalogue families reused across HP, H3C, Huawei EBG, Microsoft and Trend
+Micro. HP and HPE remain separate product portfolios.
+
+After deployment, the first authenticated administrator CRM load imports the
+records into D1. The `target-vendors-partnership-v1` config marker makes this a
+one-time operation. The seed reuses matching vendors, fills missing metadata,
+links existing unassigned products and preserves existing prices, descriptions,
+partnership progress and explicit vendor links. No schema migration is needed.
+
+Family-level offerings include official catalogue reference links; exact regional
+SKUs, supply, licence terms and prices require supplier confirmation. Avientek
+entries describe a distributor portfolio, not products manufactured by Avientek.
+No supplier prices or contact numbers have been fabricated. Managed-service
+entries describe proposed scopes for confirmation. The progress notes record the
+spreadsheet's statements, without claiming independent certification verification.
+The vendor editor and admin report builder expose the imported metadata.
+
+```sh
+node tests/target-vendors.test.mjs
+```

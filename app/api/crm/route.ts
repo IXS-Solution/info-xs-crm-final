@@ -1,3 +1,4 @@
+import {seedTargetVendors} from '../../../lib/target-vendors';
 import {visibleRecords,checkSalesWrite} from '../../../lib/crm-access';
 import {validateReport} from '../../../lib/crm-reports';
 import {calculateISO} from '../../../lib/iso';
@@ -18,7 +19,9 @@ async function context(){
  const admin=owner.value===u.userId;
  if(!admin&&!isStaffEmail(u.email))throw new Error('Access is restricted to approved @info-xs.com staff accounts.');
  const member=records.find((r:any)=>r.kind==='team'&&r.email?.toLowerCase()===u.email.toLowerCase()&&r.status==='Active');
- if(!admin&&!member)throw new Error('Your account is not an active team member');return {u,db,records,admin,member};
+ if(!admin&&!member)throw new Error('Your account is not an active team member');
+ if(admin&&await seedTargetVendors(db,records,u.email)){const fresh:any=await db.prepare('SELECT * FROM crm_records').all();records.splice(0,records.length,...fresh.results.map((r:any)=>({...JSON.parse(r.data),id:r.id,kind:r.kind,version:r.version})));}
+ return {u,db,records,admin,member};
 }
 export async function GET(){try{const c=await context();return reply({records:visibleRecords(c.records,c.admin,c.member),user:{email:c.u.email,name:c.u.displayName,admin:c.admin,memberId:c.member?.id}})}catch(e:any){return reply({error:e.message},403)}}
 export async function POST(req:Request){try{

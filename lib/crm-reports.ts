@@ -8,7 +8,7 @@ export const reportFields:Record<string,Record<string,string>>={
  activity:{...common,type:'Activity type',lead:'Lead',contact:'Contact',outcome:'Outcome'},
  team:{id:'Staff ID',name:'Team member',email:'Email',status:'Status',designation:'Designation',joiningDate:'Joining date',quota:'Quota for selected year',won:'Won sales for selected year',attainment:'Quota attainment %',open:'Open pipeline',orders:'Recorded ISO count',isoSales:'Recorded ISO sales',gp:'Recorded ISO final GP'},
  company:{...common,industry:'Industry',city:'City',phone:'Phone',email:'Email'},
- vendor:{...common,contactPerson:'Contact person',city:'City',email:'Email',phone:'Phone'},
+ vendor:{...common,contactPerson:'Contact person',city:'City',email:'Email',phone:'Phone',vendorType:'Vendor type',technologyScope:'Technology / solution scope',partnershipStatus:'Partnership progress',distributor:'Distributor'},
  product:{id:'Offering ID',name:'Offering',type:'Type',vendor:'Vendor',brand:'Brand',category:'Category',unit:'Unit',price:'Unit price'}
 };
 export const numericFields=new Set(['sales','cost','tax','invoice','gp','margin','finance','value','total','quota','won','attainment','open','orders','isoSales','price']);
