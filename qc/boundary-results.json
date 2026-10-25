@@ -1,0 +1,9 @@
+{
+  "testedAt": "2026-10-25T18:49:15.840Z",
+  "checks": [
+    "oversize brochure file is rejected",
+    "unknown brochure ids cannot be attached to proposals",
+    "document metadata cannot be forged through general record endpoint",
+    "invalid email and missing product vendors are rejected"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "testedAt": "2026-10-25T18:47:57.227Z",
+  "checks": [
+    "two and three product comparisons and proposal recommendation",
+    "CSV parsing, column mapping, review and persistent import",
+    "Excel .xlsx parsing and saving",
+    "PDF text extraction and editable preview",
+    "visiting card OCR from a real image using local assets",
+    "scanned PDF fallback renders the page and runs OCR",
+    "vendor brochure list and proposal attachment selection",
+    "approved proposal package contains proposal and original brochure",
+    "mobile layout has no page overflow"
+  ],
+  "pageErrors": []
+}

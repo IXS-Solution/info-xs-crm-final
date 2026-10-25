@@ -1,0 +1,18 @@
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import {dirname,join,resolve} from 'node:path';
+import {mkdirSync,copyFileSync} from 'node:fs';
+const require=createRequire(import.meta.url);
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const packageDir=name=>dirname(require.resolve(name+'/package.json'));
+const output=join(root,'public/ocr');mkdirSync(join(output,'core'),{recursive:true});mkdirSync(join(output,'lang'),{recursive:true});
+const tess=packageDir('tesseract.js'),pdf=packageDir('pdfjs-dist');
+const core=dirname(createRequire(join(tess,'package.json')).resolve('tesseract.js-core/package.json'));
+copyFileSync(join(tess,'dist/worker.min.js'),join(output,'worker.min.js'));
+copyFileSync(join(tess,'LICENSE.md'),join(output,'TESSERACT-LICENSE.md'));
+copyFileSync(join(core,'LICENSE'),join(output,'core/LICENSE'));
+copyFileSync(join(pdf,'LICENSE'),join(output,'PDFJS-LICENSE'));
+copyFileSync(join(pdf,'build/pdf.worker.min.mjs'),join(output,'pdf.worker.min.mjs'));
+copyFileSync(join(packageDir('@tesseract.js-data/eng'),'4.0.0/eng.traineddata.gz'),join(output,'lang/eng.traineddata.gz'));
+for(const variant of ['','-simd','-relaxedsimd'])for(const extension of ['.wasm','.wasm.js'])copyFileSync(join(core,`tesseract-core${variant}-lstm${extension}`),join(output,'core',`tesseract-core${variant}-lstm${extension}`));
+console.log('CRM PDF and OCR assets prepared');

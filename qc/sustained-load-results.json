@@ -1,0 +1,49 @@
+{
+  "testedAt": "2026-10-25T18:47:18.215Z",
+  "environment": "Local production Worker with isolated D1 and R2, 1,000 imported test contacts plus catalogue and QC fixtures",
+  "durationPerStageSeconds": 10,
+  "results": [
+    {
+      "concurrency": 5,
+      "startingRecords": 1147,
+      "readRequests": 870,
+      "writeRequests": 45,
+      "statuses": {
+        "200": 915
+      },
+      "elapsedMs": 10051,
+      "requestsPerSecond": 91,
+      "p50Ms": 54,
+      "p95Ms": 72,
+      "maxMs": 117
+    },
+    {
+      "concurrency": 20,
+      "startingRecords": 1147,
+      "readRequests": 942,
+      "writeRequests": 40,
+      "statuses": {
+        "200": 982
+      },
+      "elapsedMs": 10202,
+      "requestsPerSecond": 96,
+      "p50Ms": 207,
+      "p95Ms": 246,
+      "maxMs": 270
+    },
+    {
+      "concurrency": 50,
+      "startingRecords": 1147,
+      "readRequests": 1001,
+      "writeRequests": 48,
+      "statuses": {
+        "200": 1049
+      },
+      "elapsedMs": 10452,
+      "requestsPerSecond": 100,
+      "p50Ms": 486,
+      "p95Ms": 638,
+      "maxMs": 724
+    }
+  ]
+}

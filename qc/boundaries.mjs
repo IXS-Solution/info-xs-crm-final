@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+const base='http://127.0.0.1:5180',auth={'oai-authenticated-user-id':'qc-owner','oai-authenticated-user-email':'qc-owner@example.test'};const fixtures=JSON.parse(readFileSync('qc/api-load-results.json')).fixtures;const checks=[];
+async function request(path,body,headers=auth){const r=await fetch(base+path,{method:'POST',headers:{...headers,...(body instanceof FormData?{}:{'Content-Type':'application/json'})},body:body instanceof FormData?body:JSON.stringify(body)});return {status:r.status,data:await r.json()}}
+async function check(name,fn){await fn();checks.push(name);console.log('PASS',name)}
+await check('oversize brochure file is rejected',async()=>{const f=new FormData();f.set('vendor',fixtures.vendor);f.set('file',new File([new Uint8Array(10*1024*1024+1)],'oversize.pdf',{type:'application/pdf'}));const r=await request('/api/crm/files',f);assert.equal(r.status,400);assert.match(r.data.error,/10 MB/)});
+await check('unknown brochure ids cannot be attached to proposals',async()=>{const r=await request('/api/crm',{action:'save',record:{kind:'proposal',title:'Invalid brochure',owner:fixtures.team,company:fixtures.company,brochures:['missing'],items:[{description:'Item',qty:1,price:1}]}});assert.equal(r.status,400);assert.match(r.data.error,/brochure/)});
+await check('document metadata cannot be forged through general record endpoint',async()=>{const r=await request('/api/crm',{action:'save',record:{kind:'literature',name:'Forged',storageKey:'somebody-elses-key',vendor:fixtures.vendor}});assert.equal(r.status,400)});
+await check('invalid email and missing product vendors are rejected',async()=>{assert.equal((await request('/api/crm',{action:'import',target:'contact',rows:[{name:'Bad',company:'QC',email:'not-an-email'}]})).status,400);assert.equal((await request('/api/crm',{action:'import',target:'product',rows:[{name:'Bad',vendor:'Unregistered'}]})).status,400)});
+writeFileSync('qc/boundary-results.json',JSON.stringify({testedAt:new Date().toISOString(),checks},null,2)+'\n');

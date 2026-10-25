@@ -1,0 +1,58 @@
+{
+  "testedAt": "2026-10-25T18:43:07.310Z",
+  "environment": "Local production Worker, isolated D1 and R2; not hosted capacity",
+  "checks": [
+    "unauthenticated and unregistered users denied",
+    "staff contact import allowed and catalogue writes denied",
+    "invalid bulk import is atomic and duplicates are skipped",
+    "ten simultaneous imports create one contact and company",
+    "brochure upload validates permissions, vendor, product and file type",
+    "brochures download intact through authenticated API",
+    "proposal totals, approval permissions and brochure retention",
+    "optimistic locking rejects stale edits"
+  ],
+  "load": [
+    {
+      "concurrency": 5,
+      "requests": 250,
+      "errors": 0,
+      "elapsedMs": 1182,
+      "requestsPerSecond": 211,
+      "p50Ms": 21,
+      "p95Ms": 43,
+      "maxMs": 72
+    },
+    {
+      "concurrency": 20,
+      "requests": 250,
+      "errors": 0,
+      "elapsedMs": 1107,
+      "requestsPerSecond": 226,
+      "p50Ms": 83,
+      "p95Ms": 163,
+      "maxMs": 164
+    },
+    {
+      "concurrency": 50,
+      "requests": 250,
+      "errors": 0,
+      "elapsedMs": 1060,
+      "requestsPerSecond": 236,
+      "p50Ms": 186,
+      "p95Ms": 367,
+      "maxMs": 375
+    }
+  ],
+  "fixtures": {
+    "team": "21c0fe6c-f726-4daa-89dd-1254da06b53c",
+    "vendor": "c17f23d7-806a-4b83-9e2c-b73696f1007f",
+    "company": "99773d93-5758-4e1e-b7ab-229a5215d64c",
+    "products": [
+      "87d8c8ea-5d43-4ba1-8023-25824f9fa84e",
+      "cc2fd488-771b-4a29-85cb-6c948966ddef",
+      "93fcc41b-f85b-40f5-bda6-3deb68645eba"
+    ],
+    "brochure": "0412df5c-9820-45d8-8a29-75e0dd9f427b",
+    "proposal": "3ae111be-7711-4a9d-905e-35cad427b8cb"
+  }
+}
